@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ninja vs Monster</title>
+<style>
+:root{color-scheme:dark;--ink:#17312c;--lime:#c9ff72;--mint:#d9fff0}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(ellipse at top,#244f48,#101f2b 72%);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#fff}
+main{width:min(900px,100%)}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.brand{font-weight:900;letter-spacing:.08em;font-size:clamp(18px,4vw,27px)}.brand span{color:var(--lime)}.tag{font-size:12px;color:#b8d5ce;border:1px solid #52766d;border-radius:99px;padding:7px 11px}
+.frame{position:relative;border:3px solid #d2ff93;border-radius:16px;overflow:hidden;box-shadow:0 20px 80px #0008;background:#9ce8f4}canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:manipulation}
+.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#122a27b8;padding:20px}.overlay.hidden{display:none}.eyebrow{font-size:12px;letter-spacing:.25em;color:var(--lime);font-weight:800}.overlay h1{font-size:clamp(30px,7vw,62px);line-height:1;margin:12px 0;text-shadow:4px 4px #163e38;font-weight:1000}.overlay p{margin:4px 0 20px;color:#e0fff0}.btn{border:0;border-radius:10px;padding:13px 24px;background:var(--lime);color:#17312c;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 5px 0 #7ba83d}.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #7ba83d}.stats{display:flex;justify-content:space-between;gap:10px;padding:13px 3px;color:#d8e9e3;font-size:13px}.stats strong{color:var(--lime);font-size:16px}.help{text-align:center;color:#a9c9c0;font-size:12px;line-height:1.7;margin-top:6px}.mobile{display:none;margin:0 auto}.mobile button{width:100%;padding:12px;border:1px solid #75998e;border-radius:10px;background:#244b43;color:white;font-weight:800}
+@media(max-width:560px){body{padding:12px}.tag{display:none}.mobile{display:block;width:100%;margin-top:8px}.stats{font-size:11px}.stats strong{font-size:14px}}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><div class="brand">🥷 NINJA <span>VS</span> MONSTER</div><div class="tag">ENDLESS RUNNER · PIXEL WORLD</div></div>
+<div class="frame">
+<canvas id="game" width="800" height="450" aria-label="Ninja versus Monster game"></canvas>
+<div id="overlay" class="overlay"><div class="eyebrow">A SUNNY FOREST ADVENTURE</div><h1 id="headline">NINJA<br>VS MONSTER</h1><p id="message">Jump over monsters and beat your high score!</p><button id="start" class="btn">▶ START GAME</button></div>
+</div>
+<div class="stats"><div>SCORE <strong id="score">0</strong></div><div>BEST <strong id="best">0</strong></div><div id="state">READY</div></div>
+<div class="mobile"><button id="jump">TAP TO JUMP ⤴</button></div>
+<div class="help">SPACE / ↑ / TAP TO JUMP &nbsp; · &nbsp; ESC TO PAUSE &nbsp; · &nbsp; Avoid the purple monsters!</div>
+</main>
+<script>
+(()=> {
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const overlay=document.getElementById('overlay'),headline=document.getElementById('headline'),message=document.getElementById('message'),startBtn=document.getElementById('start');
+const scoreEl=document.getElementById('score'),bestEl=document.getElementById('best'),stateEl=document.getElementById('state');
+let mode='ready',score=0,best=0,frame=0,speed=5,spawnIn=80,ground=365,lastTime=0,pausedFrom='playing';
+try{best=Number(localStorage.getItem('ninjaMonsterBest')||0)}catch(e){}bestEl.textContent=best;
+const ninja={x:120,y:ground-64,w:42,h:64,vy:0,onGround:true,run:0};
+let monsters=[];
+function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),w,h)}
+function drawScene(){
+ const g=ctx.createLinearGradient(0,0,0,450);g.addColorStop(0,'#79d8f4');g.addColorStop(1,'#d7f5b1');ctx.fillStyle=g;ctx.fillRect(0,0,800,450);
+ // sun and distant hills
+ rect(650,48,48,48,'#fff4a0');rect(662,36,24,12,'#fff4a0');rect(638,60,12,24,'#fff4a0');
+ ctx.fillStyle='#8bcf91';ctx.beginPath();ctx.moveTo(0,290);ctx.lineTo(100,190);ctx.lineTo(210,290);ctx.lineTo(360,175);ctx.lineTo(520,292);ctx.lineTo(670,205);ctx.lineTo(800,280);ctx.lineTo(800,390);ctx.lineTo(0,390);ctx.fill();
+ for(let i=0;i<7;i++){let x=((i*145-frame*.6)%950+950)%950-80;rect(x,225,18,95,'#397f55');rect(x-18,205,54,34,'#398d56');rect(x-8,184,35,30,'#4da968');rect(x-24,235,20,24,'#398d56')}
+ // ground
+ rect(0,ground,800,85,'#4bb653');rect(0,ground+12,800,73,'#9b633b');rect(0,ground,800,7,'#a6e65a');
+ for(let i=0;i<45;i++){let x=((i*31-frame*speed*1.4)%840+840)%840;rect(x,ground+20+(i%4)*12,10+(i%3)*4,3,i%2?'#c1814c':'#78482f')}
+ for(let i=0;i<30;i++){let x=((i*47-frame*speed)%820+820)%820;rect(x,ground-8-(i%3)*4,3,7,'#3b9b46')}
+}
+function drawNinja(){
+ let x=ninja.x,y=ninja.y,step=Math.floor(ninja.run/5)%2;
+ // shadow
+ rect(x-5,ground-3,52,6,'#2d754b88');
+ // legs animate
+ rect(x+10,y+43,10,18, '#182d49');rect(x+25,y+43,10,18,'#182d49');
+ if(ninja.onGround&&step===0){rect(x+7,y+58,16,6,'#15243a');rect(x+24,y+56,17,6,'#15243a')}else{rect(x+2,y+55,15,6,'#15243a');rect(x+27,y+60,16,5,'#15243a')}
+ // body and arms
+ rect(x+8,y+23,29,25,'#1c3559');rect(x+4,y+27,8,18,'#263f69');rect(x+33,y+27,8,17,'#263f69');
+ rect(x+7,y+22,32,5,'#e74d56');rect(x+31,y+24,19,5,'#e74d56');
+ // head + mask
+ rect(x+10,y+2,29,25,'#f2c39a');rect(x+7,y+7,35,12,'#18283c');rect(x+10,y+11,30,4,'#e7f8f0');rect(x+31,y+12,5,3,'#1b2939');
+ rect(x+9,y,30,6,'#17263d');rect(x+5,y+3,15,5,'#17263d');rect(x+30,y-1,15,5,'#17263d');
+}
+function drawMonster(m){
+ const x=m.x,y=ground-54;
+ // purple pixel monster
+ rect(x+7,y+8,35,39,'#733ac5');rect(x,y+18,12,24,'#8b4ce0');rect(x+37,y+17,12,25,'#8b4ce0');
+ rect(x+5,y+3,37,12,'#8b4ce0');rect(x+10,y-2,9,8,'#8b4ce0');rect(x+29,y-2,9,8,'#8b4ce0');
+ rect(x+11,y+17,8,10,'#fff');rect(x+29,y+17,8,10,'#fff');rect(x+14,y+20,4,6,'#20253b');rect(x+30,y+20,4,6,'#20253b');
+ rect(x+13,y+35,22,5,'#321e62');rect(x+17,y+35,4,5,'#fff');rect(x+27,y+35,4,5,'#fff');
+ rect(x+8,y+45,12,10,'#51268e');rect(x+30,y+45,12,10,'#51268e');
+}
+function render(){drawScene();monsters.forEach(drawMonster);drawNinja();if(mode==='paused'){ctx.fillStyle='#122a2780';ctx.fillRect(0,0,800,450)}}
+function update(){
+ if(mode!=='playing')return;
+ frame++;ninja.run++;ninja.vy+=.65;ninja.y+=ninja.vy;if(ninja.y>=ground-ninja.h){ninja.y=ground-ninja.h;ninja.vy=0;ninja.onGround=true}
+ speed=5+Math.min(score*.12,5);spawnIn--;if(spawnIn<=0){monsters.push({x:820,w:49,passed:false});spawnIn=105}
+ monsters.forEach(m=>{m.x-=speed;if(!m.passed&&m.x+m.w<ninja.x){m.passed=true;score++;scoreEl.textContent=score}});
+ monsters=monsters.filter(m=>m.x>-70);
+ for(const m of monsters){let nx=ninja.x+7,ny=ninja.y+5,nw=32,nh=56;if(nx+nw>m.x+5&&nx<m.x+43&&ny+nh>ground-54+5){endGame();return}}
+}
+function loop(t){if(t-lastTime>1000/60){lastTime=t;update();render()}requestAnimationFrame(loop)}
+function jump(){if(mode==='ready'){begin();return}if(mode!=='playing'||!ninja.onGround)return;ninja.vy=-14;ninja.onGround=false}
+function begin(){score=0;frame=0;speed=5;spawnIn=75;monsters=[];ninja.y=ground-ninja.h;ninja.vy=0;ninja.onGround=true;mode='playing';scoreEl.textContent='0';stateEl.textContent='RUNNING';overlay.classList.add('hidden')}
+function endGame(){mode='over';stateEl.textContent='GAME OVER';if(score>best){best=score;bestEl.textContent=best;try{localStorage.setItem('ninjaMonsterBest',String(best))}catch(e){}}headline.innerHTML='GAME<br>OVER';message.textContent='SCORE: '+score+'  ·  BEST: '+best;startBtn.textContent='↻ RESTART';overlay.classList.remove('hidden')}
+function togglePause(){if(mode==='playing'){pausedFrom='playing';mode='paused';stateEl.textContent='PAUSED';headline.textContent='PAUSED';message.textContent='Take a breath, ninja.';startBtn.textContent='▶ RESUME';overlay.classList.remove('hidden')}else if(mode==='paused'){mode='playing';stateEl.textContent='RUNNING';overlay.classList.add('hidden')}}
+startBtn.addEventListener('click',()=>{if(mode==='paused'){togglePause()}else begin()});
+document.getElementById('jump').addEventListener('pointerdown',e=>{e.preventDefault();jump()});
+canvas.addEventListener('pointerdown',()=>{if(mode==='playing')jump();else if(mode==='ready'||mode==='over')begin()});
+window.addEventListener('keydown',e=>{if(['Space','ArrowUp'].includes(e.code)){e.preventDefault();if(!e.repeat)jump()}if(e.code==='Escape'){e.preventDefault();togglePause()}if(e.code==='Enter'&&(mode==='ready'||mode==='over'))begin()});
+render();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
