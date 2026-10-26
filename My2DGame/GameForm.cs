@@ -40,7 +40,7 @@ internal sealed class GameForm : Form
             for(int i=0;i<trees.Count;i++){var t=trees[i];t.X-=1.7f;if(t.Right<0){t.X=800+rng.Next(100);t.Y=rng.Next(105,235);}trees[i]=t;}
             vy+=.58f;py+=vy;if(py>=ground-ph){py=ground-ph;vy=0;}
             ticks++;
-            if(mx < -mw){mx=850;counted=false;}
+            if(mx < -mw){mx=850;ticks=0;counted=false;}
             if(mx>=850 && ticks>=115){mx=800;ticks=0;counted=false;}
             if(mx<850)
             {
